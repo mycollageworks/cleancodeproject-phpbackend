@@ -66,7 +66,11 @@ class DB
 
   public function delete(string $sql, array $params = []): int
   {
-    return $this->update($sql, $params);
+    $stmt = $this->query($sql, $params);
+    if ($stmt === false) {
+      return 0; // No rows deleted
+    }
+    return $stmt->rowCount();
   }
 
   public function raw(): PDO
