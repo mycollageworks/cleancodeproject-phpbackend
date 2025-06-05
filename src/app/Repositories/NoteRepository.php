@@ -23,11 +23,25 @@ class NoteRepository
     return $notes;
   }
 
+  public function find(int $id): ?Note
+  {
+    $db = \Core\DB::getInstance();
+    $sql = "SELECT * FROM notes WHERE id = :id";
+    $params = ['id' => $id];
+    $row = $db->fetch($sql, $params);
+
+    if (!$row) {
+      return null; // Note not found
+    }
+
+    return NoteFactory::fromArray($row);
+  }
+
   public function create(Note $note)
   {
     // Bind the Note model to the database
     $db = \Core\DB::getInstance();
-    $sql = "INSERT INTO notes ('date', content, created_at, updated_at) VALUES (:dateStr, :content, :created_at, :updated_at)";
+    $sql = "INSERT INTO notes (date, content, created_at, updated_at) VALUES (:dateStr, :content, :created_at, :updated_at)";
     $params = [
       'dateStr' => $note->date,
       'content' => $note->content,
@@ -42,5 +56,26 @@ class NoteRepository
     // Return the created note with the new ID
     $note->id = $db->raw()->lastInsertId();
     return $note;
+  }
+
+  public function update(Note $note): bool
+  {
+    $db = \Core\DB::getInstance();
+    $sql = "UPDATE notes SET date = :dateStr, content = :content, updated_at = :updated_at WHERE id = :id";
+    $params = [
+      'id' => $note->id,
+      'dateStr' => $note->date,
+      'content' => $note->content,
+      'updated_at' => $note->updatedAt->format('Y-m-d H:i:s'),
+    ];
+    return $db->query($sql, $params);
+  }
+
+  public function delete(int $id): bool
+  {
+    $db = \Core\DB::getInstance();
+    $sql = "DELETE FROM notes WHERE id = :id";
+    $params = ['id' => $id];
+    return $db->delete($sql, $params);
   }
 }

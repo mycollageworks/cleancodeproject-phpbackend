@@ -3,48 +3,18 @@
 namespace Core;
 
 use InvalidArgumentException;
+use ReflectionMethod;
+use ReflectionNamedType;
 
 class Router
 {
   private array $routes = [];
-
-  // function run
-  public function run()
-  {
-    $method = $_SERVER['REQUEST_METHOD'];
-    $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    $path = str_replace('/index.php', '', $path); // if using built-in server
-
-    if (isset($this->routes[$method][$path])) {
-      header('Content-Type: application/json');
-      echo ($this->routes[$method][$path])();
-    } else {
-      http_response_code(404);
-      echo json_encode(['error' => 'Not Found']);
-    }
-  }
-
 
   // Method
   public function request(string $method, string $path, callable|array $handler)
   {
     if (!isset($this->routes[$method])) {
       $this->routes[$method] = [];
-    }
-
-    // reflect the handler to ensure it's callable
-    if (!is_callable($handler)) {
-      $className = $handler[0];
-      $methodName = $handler[1] ?? 'index';
-
-      if (!class_exists($className) || !method_exists($className, $methodName)) {
-        throw new InvalidArgumentException("Handler {$className}::{$methodName} is not callable.");
-      }
-
-      $handler = function () use ($className, $methodName) {
-        $instance = new $className();
-        return $instance->$methodName();
-      };
     }
 
     $this->routes[$method][$path] = $handler;
@@ -97,17 +67,64 @@ class Router
   public function dispatch()
   {
     $method = $_SERVER['REQUEST_METHOD'];
-    $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    $path = str_replace('/index.php', '', $path); // if using built-in server
+    $requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $requestPath = str_replace('/index.php', '', $requestPath); // if using built-in server
 
-    $handler = $this->routes[$method][$path] ?? null;
+    $handler = $this->routes[$method][$requestPath] ?? null;
 
-    if ($handler) {
-      header('Content-Type: application/json');
-      echo $handler();
-    } else {
-      http_response_code(404);
-      echo json_encode(['error' => 'Not Found']);
+
+    $routes = $this->routes[$method] ?? [];
+
+    foreach ($routes as $routePath => $handler) {
+      $pattern = preg_replace('#\{(\w+)\}#', '(?P<\1>[^/]+)', $routePath);
+      $pattern = "#^" . $pattern . "$#";
+
+      if (preg_match($pattern, $requestPath, $matches)) {
+        $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
+
+        // Build real callable with parameter injection
+        if (!is_callable($handler)) {
+          $className = $handler[0];
+          $methodName = $handler[1] ?? 'index';
+
+          if (!class_exists($className) || !method_exists($className, $methodName)) {
+            throw new InvalidArgumentException("Handler {$className}::{$methodName} is not callable.");
+          }
+
+          $handler = function () use ($className, $methodName, $params) {
+            $method = new ReflectionMethod($className, $methodName);
+            $args = [];
+
+            foreach ($method->getParameters() as $param) {
+              $type = $param->getType();
+
+              if ($type && $type instanceof ReflectionNamedType) {
+                $name = $param->getName();
+                $typeName = $type->getName();
+
+                if ($typeName === \Core\Request::class) {
+                  $args[] = new \Core\Request();
+                } elseif (isset($params[$name])) {
+                  // Cast to expected type (e.g. int)
+                  settype($params[$name], $typeName);
+                  $args[] = $params[$name];
+                } else {
+                  $args[] = null;
+                }
+              } else {
+                $args[] = $params[$param->getName()] ?? null;
+              }
+            }
+
+            return $method->invokeArgs(new $className, $args);
+          };
+        }
+
+        echo $handler();
+        return;
+      }
     }
+
+    Response::json(['error' => 'Not Found'], 404);
   }
 };

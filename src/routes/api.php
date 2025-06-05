@@ -7,7 +7,7 @@ use Bramus\Router\Router;
 
 
 $router->get('/notes', [NoteController::class, 'index']);
-
 $router->post('/notes', [NoteController::class, 'store']);
-
-$router->run();
+$router->get('/notes/{id}', [NoteController::class, 'show']);
+$router->put('/notes/{id}', [NoteController::class, 'update']);
+$router->delete('/notes/{id}', [NoteController::class, 'destroy']);
