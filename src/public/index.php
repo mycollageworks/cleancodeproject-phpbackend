@@ -4,7 +4,19 @@ use Core\Response;
 
 error_reporting(E_ALL & ~E_WARNING); // hilangkan WARNING tapi tetap tampilkan error penting
 
-require_once __DIR__.'/../../vendor/autoload.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+
+// Allow CORS
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+
+// Handle preflight request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 // Handle Exception → JSON response
 set_exception_handler(function (Throwable $e) {
