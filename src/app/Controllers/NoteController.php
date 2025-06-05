@@ -76,7 +76,7 @@ class NoteController extends Controller
         $note->updatedAt = new \DateTime;
 
         try {
-            $this->noteRepository->update($note); // Assuming create method can also update
+            $this->noteRepository->update($note);
 
             return $this->successResponse('Note updated successfully');
         } catch (\Throwable $th) {
