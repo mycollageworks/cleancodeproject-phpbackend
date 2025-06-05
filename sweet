@@ -1,0 +1,35 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+$commands = [
+  'start' => function () {
+    Dotenv\Dotenv::createImmutable(__DIR__)->load();
+
+    $host = $_ENV['APP_HOST'] ?? 'localhost';
+    $port = $_ENV['APP_PORT'] ?? '8000';
+    $docroot = __DIR__ . '/src/public';
+
+    echo "🚀 Starting {$_ENV['APP_NAME']} on http://$host:$port\n";
+
+    $command = sprintf('php -S %s:%s -t %s', $host, $port, escapeshellarg($docroot));
+    passthru($command);
+  },
+  'hello' => function () {
+    echo "Hello from Note Manager CLI!\n";
+  },
+];
+
+$command = $argv[1] ?? null;
+
+if (!$command || !isset($commands[$command])) {
+  echo "Available commands:\n";
+  foreach (array_keys($commands) as $cmd) {
+    echo " - $cmd\n";
+  }
+  exit(1);
+}
+
+// Run the command
+$commands[$command]();
