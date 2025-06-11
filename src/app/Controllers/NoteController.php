@@ -16,9 +16,10 @@ class NoteController extends Controller
         $this->noteRepository = new NoteRepository;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $notes = $this->noteRepository->all();
+        $searchTerm = $request->getQueryParam('search', '');
+        $notes = $this->noteRepository->findBySearchTerm($searchTerm);
 
         return $this->jsonResponse([
             'notes' => $notes,

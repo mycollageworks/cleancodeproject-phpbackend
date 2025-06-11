@@ -23,6 +23,23 @@ class NoteRepository
         return $notes;
     }
 
+    public function findBySearchTerm(string $searchTerm): array
+    {
+        $db = \Core\DB::getInstance();
+        $sql = 'SELECT * FROM notes WHERE (content LIKE :searchTerm OR date LIKE :searchTerm) AND deleted_at IS NULL ORDER BY created_at DESC';
+        $params = ['searchTerm' => '%'.$searchTerm.'%'];
+        $result = $db->fetchAll($sql, $params);
+
+        // bind to Note model
+        $notes = [];
+        foreach ($result as $row) {
+            $note = NoteFactory::fromArray($row);
+            $notes[] = $note;
+        }
+
+        return $notes;
+    }
+
     public function find(int $id): ?Note
     {
         $db = \Core\DB::getInstance();
